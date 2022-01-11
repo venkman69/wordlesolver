@@ -1,3 +1,4 @@
+from random import randint
 from nltk.corpus import words
 import copy
 from itertools import product
@@ -46,7 +47,7 @@ def allpossiblewords():
     wordset = newwordset
     wordfreq={ word_frequency(x,"en"):x for x in newwordset }
     wordf_sorted=sorted(wordfreq.items(), key=lambda item: item[0], reverse=True)
-    return(wordf_sorted[0:10])
+    return(wordf_sorted)
 
 def sel_wait_for(elemPath, bywhat):
     try:
@@ -75,8 +76,8 @@ body_element.click()
 attempt=1
 rowcol='document.querySelector("body > game-app").shadowRoot.querySelector("#board > game-row:nth-child(%s)").shadowRoot.querySelector("div > game-tile:nth-child(%s)")'
 solved=False
+currentword = topwords[randint(1,100)][1]
 while not solved:
-    currentword = topwords[0][1]
     body_element.send_keys(currentword)
     body_element.send_keys(Keys.ENTER)
     time.sleep(2)
@@ -105,6 +106,7 @@ while not solved:
             print("solved: "+currentword)
             solved=True
     topwords=allpossiblewords()
+    currentword = topwords[0][1]
     attempt+=1
 input("hit enter to close")
 browser.close()
