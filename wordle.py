@@ -61,8 +61,29 @@ def sel_wait_for(elemPath, bywhat):
         sys.exit()
 
 
+def get_outcome_absurdle(attempt, currentword):
+    rowcol='document.querySelector("body > div > div > div.absurdle__upper > table > tbody > tr:nth-child(%s) > td:nth-child(%s)")'
+    outcome=[]
+    #check if there is repeated chars in the currentword
+    samechars=list(currentword)
+    for x in set(currentword):
+        samechars.remove(x)
+    for col in range(5): 
+        currentchar = currentword[col]
+        elem=browser.execute_script('return '+rowcol%(attempt,col+1))
+        v=elem.get_attribute("class")
+        if v.endswith("wrong"):
+            v="absent"
+        elif v.endswith("inexact"):
+            v="present"
+        elif v.endswith("exact"):
+            v="correct"
+        val={"col":col,"char":currentchar,"eval":v,"samechar":currentchar in samechars}
+        outcome.append(val)
 
-def get_outcome(attempt, currentword):
+    return outcome
+
+def get_outcome_wordle(attempt, currentword):
     rowcol='document.querySelector("body > game-app").shadowRoot.querySelector("#board > game-row:nth-child(%s)").shadowRoot.querySelector("div > game-tile:nth-child(%s)")'
     outcome=[]
     #check if there is repeated chars in the currentword
@@ -78,6 +99,11 @@ def get_outcome(attempt, currentword):
 
     return outcome
 
+def slow_type(element, text, delay=0.1):
+    """Send a text to an element one character at a time with a delay."""
+    for character in text:
+        element.send_keys(character)
+        time.sleep(delay)
 
 def wordlesover(startword=None):    
     global charmap, browser
@@ -89,10 +115,14 @@ def wordlesover(startword=None):
 
     browser_svc = Service(executable_path="./chromedriver")
     browser = webdriver.Chrome(service=browser_svc,chrome_options=chr_opt)
-    browser.get("https://www.powerlanguage.co.uk/wordle/")
-    time.sleep(2)
+    if wordletype == "wordle":
+        browser.get("https://www.powerlanguage.co.uk/wordle/")
+        time.sleep(2)
+    elif wordletype=="absurdle":
+        browser.get("https://qntm.org/files/wordle/index.html")
     body_element=browser.find_element(BY.TAG_NAME,"body")
-    body_element.click()
+    if wordletype=="wordle":
+        body_element.click()
     # browser.find_element(BY.XPATH,'//*[@id="game"]/game-modal//div/div/div').click()
     attempt=1
     solved=False
@@ -101,11 +131,20 @@ def wordlesover(startword=None):
     else:
         currentword = topwords[randint(1,100)][1]
     while not solved:
-        body_element.send_keys(currentword)
+        time.sleep(1)
+        slow_type(body_element,currentword)
+        # body_element.send_keys(currentword)
+        time.sleep(0.1)
         body_element.send_keys(Keys.ENTER)
         time.sleep(2)
         # analyse response
-        outcome=get_outcome(attempt, currentword)
+        if wordletype=="wordle":
+            outcome=get_outcome_wordle(attempt, currentword)
+        if wordletype=="absurdle":
+            outcome=get_outcome_absurdle(attempt, currentword)
+        if len([x["eval"] for x in outcome if x["eval"]=="correct"])==5:
+            print("Success : %s"%currentword)
+            break
         for col in range(5): 
             data=outcome[col]
             currentchar=data["char"]
@@ -135,6 +174,7 @@ def wordlesover(startword=None):
             print("solved: "+currentword)
             solved=True
         topwords=allpossiblewords()
+        print("Choice of %s words"%len(topwords))
         currentword = topwords[0][1]
         attempt+=1
     input("hit enter to close")
@@ -144,6 +184,12 @@ def wordlesover(startword=None):
 
 if __name__ == "__main__":
     startingword=None
-    if len(sys.argv) > 0:
-        startingword=sys.argv[1].upper()
+    if len(sys.argv) == 1:
+        print(" wordle|absurdle is a required arg")
+        sys.exit()
+    
+    wordletype=sys.argv[1]
+
+    if len(sys.argv) > 2:
+        startingword=sys.argv[2].upper()
     wordlesover(startingword)    
